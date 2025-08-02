@@ -20,13 +20,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ─── ENV / CONST ─────────────────────────────────────────────────────
-BOT_TOKEN        = os.getenv("BOT_TOKEN",        "7921810416:AAHGPSgE1L2DCMJ3pgTtyIJi-GKxwteH-p4")
-CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@kinokodlarida")
-ADMIN_CODE       = os.getenv("ADMIN_CODE",       "2299")
+
+import os
+
+BOT_TOKEN        = os.getenv("BOT_TOKEN", "7921810416:AAHGPSgE1L2DCMJ3pgTtyIJi-GKxwteH-p4").strip()
+CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@kinokodlarida").strip()
+ADMIN_CODE       = os.getenv("ADMIN_CODE", "2299").strip()
 
 DATA_FILE   = "/data1/kino_data.json"
-USERS_FILE  = "users.json"
+USERS_FILE  = "/data1/users.json"
 BACKUP_DIR  = "/data1/backups"
 
 ADMIN_IDS: Set[int] = set()
@@ -131,6 +133,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.message.reply_text("❓ Noma'lum amal.")
 
+async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        logger.warning("check_subscription error: %s", e)
+        return False
 
 
 # ─── Delete button ───────────────────────────────────────────────────
