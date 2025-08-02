@@ -88,13 +88,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "👋 Avval kanalga obuna bo‘ling:", reply_markup=sub_kb()
         )
 
-async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
 
     async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+        query = update.callback_query
+        await query.answer()
 
     if query.data == "check_subs":
         if await check_subscription(query.from_user.id, context):
@@ -103,7 +103,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("❌ Hali ham obuna bo‘lmagansiz.")
     
     # boshqa tugmalar: epizodlar, kodni o‘chirish, almashtirish va h.k. uchun
-    elif query.data.startswith("..."):
+        elif query.data.startswith("..."):
         ...
 
 
