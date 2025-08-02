@@ -133,13 +133,40 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await query.message.reply_text("❓ Noma'lum amal.")
 
-async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+
+# ─── /addserial ───────────────────────────────────────────────────────
+@admin_only
+async def add_serial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text(
+            "❌ Foydalanish: /addserial <kod> <post_id> <epizod_soni>\n"
+            "Masalan: /addserial 200 1234 10"
+        )
+        return
+
+    code = args[0]
     try:
-        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        return member.status in ("member", "administrator", "creator")
-    except Exception as e:
-        logger.warning("check_subscription error: %s", e)
-        return False
+        post_id = int(args[1])
+        episode_count = int(args[2])
+    except ValueError:
+        await update.message.reply_text("❌ post_id va epizod soni butun son bo‘lishi kerak.")
+        return
+
+    data = load_data()
+    data[code] = {
+        "type": "serial",
+        "post_id": post_id,
+        "episodes": episode_count
+    }
+    save_data(data)
+
+    await update.message.reply_text(
+        f"✅ Serial qo‘shildi:\nKod: {code}\nEpizodlar: {episode_count}"
+    )
 
 
 # ─── Delete button ───────────────────────────────────────────────────
@@ -525,7 +552,11 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, urestore_file))
     
     #yangi 001
-   
+    from telegram.ext import CommandHandler
+
+    # boshqa handlerlar bilan birga quyidagini ham qo‘shing:
+    app.add_handler(CommandHandler("addserial", add_serial))
+
 
     # ---- Core buyruqlar ----
     app.add_handler(CommandHandler("start",  start))
