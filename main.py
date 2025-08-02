@@ -92,30 +92,19 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     if query.data == "check_subs":
         if await check_subscription(query.from_user.id, context):
             await query.message.edit_text("✅ Obuna tasdiqlandi. Endi kod yuboring.")
         else:
             await query.message.reply_text("❌ Hali ham obuna bo‘lmagansiz.")
-        return
-
-    elif query.data == "random":
-        # ... (random kino funksiyasi)
-        pass
-
-    elif query.data.startswith("serial:"):
-        # ... (serial qismlar tugmalari)
-        pass
-
-async def check_subscription(user_id, context):
-    for ch in CHANNELS:
-        try:
-            member = await context.bot.get_chat_member(ch, user_id)
-            if member.status in ["left", "kicked"]:
-                return False
-        except:
-            return False
-    return True
+    
+    # boshqa tugmalar: epizodlar, kodni o‘chirish, almashtirish va h.k. uchun
+    elif query.data.startswith("..."):
+        ...
 
 
 # ─── Delete button ───────────────────────────────────────────────────
