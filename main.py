@@ -499,6 +499,9 @@ def main():
     app.add_handler(CommandHandler("urestore", urestore_cmd))
     # barcha hujjatlarni tutuvchi universal MessageHandler kerak:
     app.add_handler(MessageHandler(filters.Document.ALL, urestore_file))
+    
+    #yangi 001
+    app.add_handler(CallbackQueryHandler(callback_handler))
 
     # ---- Core buyruqlar ----
     app.add_handler(CommandHandler("start",  start))
