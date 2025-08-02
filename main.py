@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─── ENV / CONST ─────────────────────────────────────────────────────
-BOT_TOKEN        = os.getenv("BOT_TOKEN",        "YOUR_TOKEN_HERE")
+BOT_TOKEN        = os.getenv("BOT_TOKEN",        "7921810416:AAHGPSgE1L2DCMJ3pgTtyIJi-GKxwteH-p4")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@kinokodlarida")
 ADMIN_CODE       = os.getenv("ADMIN_CODE",       "2299")
 
