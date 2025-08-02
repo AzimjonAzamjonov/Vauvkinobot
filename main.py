@@ -25,9 +25,9 @@ BOT_TOKEN        = os.getenv("BOT_TOKEN",        "YOUR_TOKEN_HERE")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@filmxona_kodlari")
 ADMIN_CODE       = os.getenv("ADMIN_CODE",       "2299")
 
-DATA_FILE   = "/data/kino_data.json"
+DATA_FILE   = "/data1/kino_data.json"
 USERS_FILE  = "users.json"
-BACKUP_DIR  = "/data/backups"
+BACKUP_DIR  = "/data1/backups"
 
 ADMIN_IDS: Set[int] = set()
 USERS:     Set[int] = set()
