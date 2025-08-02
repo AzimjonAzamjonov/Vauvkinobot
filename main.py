@@ -224,7 +224,7 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kod  = update.message.text.strip()
     kino = KINO_DB.get(kod)
     if not kino:
-        await update.message.reply_text("❗ Kod topilmadi\n Aktual kodlar telegram kanalda:\n https://t.me/filmxona_kodlari")
+        await update.message.reply_text("❗ Kod topilmadi\n Aktual kodlar telegram kanalda:\n https://t.me/kinokodlarida")
         return
 
     # views
