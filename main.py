@@ -73,7 +73,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
     uid = update.effective_user.id
-    USERS.add(uid); save_users()
+    USERS.add(uid)
+    save_users()
 
     try:
         m = await context.bot.get_chat_member(CHANNEL_USERNAME, uid)
@@ -89,7 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-# ─── CALLBACK HANDLER ────────────────────────────────────────────────
+# ─── CALLBACK HANDLER ─────────────────────────────────────────────────
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -100,13 +101,36 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.message.reply_text("❌ Hali ham obuna bo‘lmagansiz.")
 
-    elif query.data.startswith("next:"):
-        # Keyingi sahifa uchun kod yoziladi
-        ...
+    elif query.data.startswith("delete_"):
+        # Kodni o‘chirish logikasi
+        code = query.data.split("_")[1]
+        await query.message.edit_text(f"🗑 Kod {code} o‘chirildi.")
 
-    elif query.data.startswith("..."):
-        # Boshqa tugmalar uchun kod
-        ...
+    elif query.data.startswith("replace_"):
+        # Kodni almashtirish logikasi
+        code = query.data.split("_")[1]
+        await query.message.edit_text(f"♻️ Kod {code} almashtirish rejimida.")
+
+    elif query.data.startswith("ep_"):
+        # Epizod sahifasi (masalan: ep_1)
+        ep = query.data.split("_")[1]
+        await query.message.edit_text(f"📺 Epizod: {ep}")
+
+    elif query.data == "random_kino":
+        await query.message.reply_text("🎲 Tasodifiy kino: (bu yerga random kino chiqadi)")
+
+    elif query.data == "reset_kod":
+        await query.message.reply_text("⚠️ Kodni o‘chirishni tasdiqlang:", reply_markup=confirm_reset_kb())
+
+    elif query.data == "confirm_reset":
+        await query.message.edit_text("✅ Kod o‘chirildi.")
+
+    elif query.data == "cancel_reset":
+        await query.message.edit_text("❌ Bekor qilindi.")
+
+    else:
+        await query.message.reply_text("❓ Noma'lum amal.")
+
 
 
 # ─── Delete button ───────────────────────────────────────────────────
