@@ -1,4 +1,4 @@
-    # ============================
+# ============================
 
 #  • /add  /reset  /stats  /send
 #  • Kod bilan kino, serial, kanal‑post jo‘natish  + views
@@ -56,7 +56,8 @@ def auto_backup() -> None:
     shutil.copy2(DATA_FILE, f"{BACKUP_DIR}/kino_backup_{ts}.json")
 
 def save_db_with_backup() -> None:
-    save_db(); auto_backup()
+    save_db()
+    auto_backup()
 
 def save_users() -> None:
     with open(USERS_FILE, "w", encoding="utf-8") as f:
@@ -73,7 +74,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
     uid = update.effective_user.id
-    USERS.add(uid); save_users()
+    USERS.add(uid)
+    save_users()
 
     try:
         m = await context.bot.get_chat_member(CHANNEL_USERNAME, uid)
@@ -89,7 +91,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def check_sub_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; await q.answer()
+    q = update.callback_query
+    await q.answer()
     m = await context.bot.get_chat_member(CHANNEL_USERNAME, q.from_user.id)
     if m.status in ("member", "administrator", "creator"):
         await q.edit_message_text("✅ Obuna tasdiqlandi. Endi kino kodini yuborishingiz mumkin.")
@@ -131,9 +134,9 @@ async def episode_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:  # next page
         start = idx
         eps = kino["episodes"]
-        kb = [[InlineKeyboardButton(eps[i]["text"], callback_data=f"ep|{kod}|{i}")]
+        kb = [[InlineKeyboardButton(eps[i]["text"] if "text" in eps[i] else f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
                for i in range(start, min(len(eps), start+10))]
-        if start+10 < len(eps):
+        if start + 10 < len(eps):
             kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|{start+10}")])
         await q.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(kb))
 
@@ -153,17 +156,41 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.warning("get_chat_member xato: %s", e)
 
-    USERS.add(uid); save_users()
+    USERS.add(uid)
+    save_users()
 
     kod  = update.message.text.strip()
     kino = KINO_DB.get(kod)
     if not kino:
-        await update.message.reply_text("❗ Kod topilmadi\n Aktual kodlar telegram kanalda:\n https://t.me/kinokodlarida")
+        await update.message.reply_text("❗ Kod topilmadi\nAktual kodlar telegram kanalda:\nhttps://t.me/kinokodlarida")
         return
 
     # views
-    kino["views"] = kino.get("views", 0) + 1; save_db_with_backup()
+    kino["views"] = kino.get("views", 0) + 1
+    save_db_with_backup()
     views_txt = f"\n👁 {kino['views']} marta ko‘rilgan"
+
+    # Serial preview
+    if kino.get("type") == "serial":
+        ep = kino["episodes"][0]
+        msg_id = ep.get("msg_id")
+
+        if msg_id:
+            # 1-qismni kanal postidan nusxa ko'chirish
+            await context.bot.copy_message(
+                chat_id=update.effective_chat.id,
+                from_chat_id=kino["channel"],
+                message_id=int(msg_id)
+            )
+
+            # Tugmalar orqali boshqa qismlarni ko'rsatish
+            kb = [[InlineKeyboardButton(f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
+                  for i in range(min(10, len(kino['episodes'])))]
+            if len(kino["episodes"]) > 10:
+                kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|10")])
+
+            await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
+        return
 
     # Channel post
     if kino.get("channel") and kino.get("msg_id"):
@@ -190,31 +217,6 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-   # Serial preview
-    if kino.get("type") == "serial":
-       ep = kino["episodes"][0]
-    msg_id = ep.get("msg_id")
-
-    if msg_id:
-        # 1-qismni kanal postidan nusxa ko'chirish
-        await context.bot.copy_message(
-            chat_id=update.effective_chat.id,
-            from_chat_id=kino["channel"],
-            message_id=int(msg_id)
-        )
-
-        # Tugmalar orqali boshqa qismlarni ko'rsatish
-        kb = [[InlineKeyboardButton(f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
-              for i in range(min(10, len(kino['episodes'])))]
-        if len(kino["episodes"]) > 10:
-            kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|10")])
-
-        await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
-    return
-
-
-        )
-
 # ─── /stats ──────────────────────────────────────────────────────────
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
@@ -227,12 +229,14 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>Statistika</b>\n\n🎬 Jami: {total}\n📹 Video: {videos}\n🎞 Serial: {serials}\n👁 Ko‘rishlar: {views}",
         parse_mode="HTML"
     )
-    # ─── /udump  ────────────────────────────────────────────────────────
+
+# ─── /udump  ────────────────────────────────────────────────────────
 async def udump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
     if not os.path.exists(USERS_FILE):
-        await update.message.reply_text("❗ users.json topilmadi."); return
+        await update.message.reply_text("❗ users.json topilmadi.")
+        return
     try:
         await context.bot.send_document(
             chat_id=update.effective_chat.id,
@@ -259,7 +263,8 @@ async def urestore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     doc = update.message.document
     if not doc or not doc.file_name.endswith(".json"):
-        await update.message.reply_text("❗ Faqat .json hujjat qabul qilinadi."); return
+        await update.message.reply_text("❗ Faqat .json hujjat qabul qilinadi.")
+        return
 
     tmp = "/tmp/new_users.json"
     await doc.get_file().download_to_drive(tmp)
@@ -268,10 +273,11 @@ async def urestore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(tmp, encoding="utf-8") as f:
             new_users = json.load(f)  # sintaksis tekshiruvi
     except Exception as e:
-        await update.message.reply_text(f"❌ JSON xato: {e}"); return
+        await update.message.reply_text(f"❌ JSON xato: {e}")
+        return
 
     try:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         os.makedirs(f"{BACKUP_DIR}/manual", exist_ok=True)
         shutil.copy2(USERS_FILE, f"{BACKUP_DIR}/manual/users_{ts}.bak")
 
@@ -290,7 +296,8 @@ async def dump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     path = "/data/kino_data.json"   # volume ichidagi to‘liq yo‘l
     if not os.path.exists(path):
-        await update.message.reply_text("❗ Fayl topilmadi."); return
+        await update.message.reply_text("❗ Fayl topilmadi.")
+        return
     try:
         await context.bot.send_document(chat_id=update.effective_chat.id,
                                         document=open(path, "rb"),
@@ -311,37 +318,33 @@ async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- Hujjat qabul qilish ---------------------------------------------------
 async def restore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # faqat restore holati bo'lsa
     if not context.user_data.get("await_restore"):
         return
     context.user_data.pop("await_restore", None)
 
     doc = update.message.document
     if not doc or not doc.file_name.endswith(".json"):
-        await update.message.reply_text("❗ Faqat .json fayl qabul qilinadi."); return
+        await update.message.reply_text("❗ Faqat .json fayl qabul qilinadi.")
+        return
 
-    # JSON’ni vaqtincha yuklab olamiz
     file_path = await doc.get_file()
     tmp = "/tmp/new_kino_data.json"
     await file_path.download_to_drive(custom_path=tmp)
 
-    # Tekshiruv: JSON sintaksis
     try:
         with open(tmp, encoding="utf-8") as f:
             new_data = json.load(f)
     except Exception as e:
-        await update.message.reply_text(f"❌ JSON xato: {e}"); return
+        await update.message.reply_text(f"❌ JSON xato: {e}")
+        return
 
     try:
-        # Eski faylni zaxira
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         os.makedirs(f"{BACKUP_DIR}/manual", exist_ok=True)
         shutil.copy2(DATA_FILE, f"{BACKUP_DIR}/manual/kino_data_{ts}.bak")
 
-        # Yangi faylni joylash
         shutil.move(tmp, DATA_FILE)
 
-        # RAM’dagi bazani yangilash
         global KINO_DB
         KINO_DB = new_data
 
@@ -388,7 +391,6 @@ async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db_with_backup()
     await update.message.reply_text("✅ Saqlandi / yangilandi.")
 
-
 # ─── /send (kanal‑postni global yuborish) ────────────────────────────
 async def send_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
@@ -408,7 +410,8 @@ async def send_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Tasdiqlang:", reply_markup=kb, reply_to_message_id=prev.message_id)
 
 async def send_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; await q.answer()
+    q = update.callback_query
+    await q.answer()
     if q.data == "cancel_send":
         await q.edit_message_text("❌ Bekor qilindi.")
         return
@@ -444,14 +447,17 @@ async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"{target} kodli kinoni o‘chirilsinmi?", reply_markup=kb)
 
 async def reset_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; await q.answer()
+    q = update.callback_query
+    await q.answer()
     if q.data == "reset_all":
-        KINO_DB.clear(); save_db_with_backup()
+        KINO_DB.clear()
+        save_db_with_backup()
         await q.edit_message_text("🗑️ Baza tozalandi.")
     elif q.data.startswith("del|"):
         _, kod = q.data.split("|",1)
         if kod in KINO_DB:
-            KINO_DB.pop(kod); save_db_with_backup()
+            KINO_DB.pop(kod)
+            save_db_with_backup()
             await q.edit_message_text(f"🗑️ {kod} o‘chirildi.")
         else:
             await q.edit_message_text("❗ Topilmadi.")
