@@ -147,75 +147,80 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     uid = update.effective_user.id
 
-    # obuna tekshirish
     try:
         m = await context.bot.get_chat_member(CHANNEL_USERNAME, uid)
         if m.status not in ("member","administrator","creator"):
             await update.message.reply_text("❌ Avval kanalga obuna bo‘ling:", reply_markup=sub_kb())
             return
     except Exception as e:
-        logger.warning("get_chat_member xato: %s", e)
+        logger.warning(f"get_chat_member xato: {e}")
+        # Kerak bo‘lsa foydalanuvchiga xabar qo‘shish mumkin
 
     USERS.add(uid)
     save_users()
 
     kod  = update.message.text.strip()
     kino = KINO_DB.get(kod)
+
     if not kino:
-        await update.message.reply_text("❗ Kod topilmadi\nAktual kodlar telegram kanalda:\nhttps://t.me/kinokodlarida")
+        await update.message.reply_text(
+            "❗ Kod topilmadi\nAktual kodlar telegram kanalda:\nhttps://t.me/kinokodlarida"
+        )
         return
 
-    # views
-    kino["views"] = kino.get("views", 0) + 1
-    save_db_with_backup()
-    views_txt = f"\n👁 {kino['views']} marta ko‘rilgan"
-
-    # Serial preview
-    if kino.get("type") == "serial":
-        ep = kino["episodes"][0]
-        msg_id = ep.get("msg_id")
-
-        if msg_id:
-            # 1-qismni kanal postidan nusxa ko'chirish
+    try:
+        # Serial turi
+        if kino.get("type") == "serial":
+            ep = kino["episodes"][0]
+            msg_id = ep.get("msg_id")
+            if not msg_id:
+                await update.message.reply_text("❌ Serial 1-qismi uchun msg_id topilmadi.")
+                return
             await context.bot.copy_message(
                 chat_id=update.effective_chat.id,
                 from_chat_id=kino["channel"],
                 message_id=int(msg_id)
             )
 
-            # Tugmalar orqali boshqa qismlarni ko'rsatish
             kb = [[InlineKeyboardButton(f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
                   for i in range(min(10, len(kino['episodes'])))]
             if len(kino["episodes"]) > 10:
                 kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|10")])
-
             await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
-        return
+            return
 
-    # Channel post
-    if kino.get("channel") and kino.get("msg_id"):
-        cp = await context.bot.copy_message(
-            update.effective_chat.id,
-            kino["channel"],
-            int(kino["msg_id"])
-        )
-        await context.bot.edit_message_reply_markup(
-            cp.chat_id, cp.message_id,
-            InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
-        )
-        return
+        # Oddiy video turi
+        if kino.get("type") == "video":
+            file_id = kino.get("file_id")
+            if not file_id:
+                await update.message.reply_text("❌ Video uchun file_id topilmadi.")
+                return
+            cap = (kino.get("caption") or f"🎬 {kino.get('title','')}\n\n📜 {kino.get('desc','')}")
+            views_txt = f"\n👁 {kino.get('views', 0)} marta ko‘rilgan"
+            await context.bot.send_video(
+                update.effective_chat.id,
+                file_id,
+                caption=cap + views_txt,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
+            )
+            return
 
-    # Video
-    if kino.get("type") == "video":
-        cap = (kino.get("caption") or
-               f"🎬 {kino.get('title','')}\n\n📜 {kino.get('desc','')}") + views_txt
-        await context.bot.send_video(
-            update.effective_chat.id,
-            kino["file_id"],
-            caption=cap,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
-        )
-        return
+        # Kanal postidan nusxa olish
+        if kino.get("channel") and kino.get("msg_id"):
+            await context.bot.copy_message(
+                update.effective_chat.id,
+                kino["channel"],
+                int(kino["msg_id"])
+            )
+            return
+
+        # Agar hech nima bajarilmasa
+        await update.message.reply_text("❗ Bu kod uchun ko‘rsatiladigan kontent mavjud emas.")
+
+    except Exception as e:
+        logger.error(f"Xatolik yuz berdi: {e}")
+        await update.message.reply_text(f"⚠️ Xatolik yuz berdi: {e}")
+
 
 # ─── /stats ──────────────────────────────────────────────────────────
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
