@@ -190,8 +190,8 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Serial preview
-   if kino.get("type") == "serial":
+   # Serial preview
+if kino.get("type") == "serial":
     ep = kino["episodes"][0]
     msg_id = ep.get("msg_id")
 
@@ -211,6 +211,7 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
     return
+
 
         )
 
