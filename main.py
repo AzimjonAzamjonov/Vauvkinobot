@@ -168,6 +168,41 @@ async def add_serial(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Serial qo‘shildi:\nKod: {code}\nEpizodlar: {episode_count}"
     )
 
+# ─── /addepisode ──────────────────────────────────────────────────────
+@admin_only
+async def add_episode(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text(
+            "❌ Foydalanish: /addepisode <kod> <epizod_raqami> <post_id>\n"
+            "Masalan: /addepisode 101 2 54321"
+        )
+        return
+
+    code = args[0]
+    try:
+        ep_number = int(args[1])
+        post_id = int(args[2])
+    except ValueError:
+        await update.message.reply_text("❌ epizod raqami va post_id butun son bo‘lishi kerak.")
+        return
+
+    data = load_data()
+    if code not in data:
+        data[code] = {"type": "video", "episodes": {}}
+    elif "episodes" not in data[code]:
+        data[code]["episodes"] = {}
+
+    data[code]["episodes"][str(ep_number)] = post_id
+    save_data(data)
+
+    await update.message.reply_text(
+        f"✅ Epizod qo‘shildi:\nKod: {code}\nEpizod: {ep_number}\nPost ID: {post_id}"
+    )
+
 
 # ─── Delete button ───────────────────────────────────────────────────
 async def del_msg_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
