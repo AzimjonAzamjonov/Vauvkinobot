@@ -7,7 +7,13 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatMemberStatus
-
+from __future__ import annotations
+import json, logging, datetime, os, shutil
+from typing import Any, Dict, List, Set
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
+    ContextTypes, filters,
 ADMIN_IDS = [7260661052]  # bu yerga o'z admin Telegram ID'ingizni yozing
 
 def admin_only(func):
@@ -22,13 +28,7 @@ def admin_only(func):
                 await update.callback_query.answer("❌ Bu amal faqat adminlar uchun.", show_alert=True)
     return wrapper
 
-from __future__ import annotations
-import json, logging, datetime, os, shutil
-from typing import Any, Dict, List, Set
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
-    ContextTypes, filters,
+
 )
 
 # ─── Logger ──────────────────────────────────────────────────────────
