@@ -1,4 +1,4 @@
-# ============================
+    # ============================
 
 #  • /add  /reset  /stats  /send
 #  • Kod bilan kino, serial, kanal‑post jo‘natish  + views
@@ -115,11 +115,17 @@ async def episode_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kino = KINO_DB.get(kod)
     if not kino: return
 
-    if tag == "ep":
-        await context.bot.send_video(
-            q.message.chat_id,
-            kino["episodes"][idx]["file_id"],
+   if tag == "ep":
+    ep = kino["episodes"][idx]
+    msg_id = ep.get("msg_id")
+    if msg_id:
+        await context.bot.copy_message(
+            chat_id=q.message.chat_id,
+            from_chat_id=kino["channel"],
+            message_id=int(msg_id),
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
+        )
+]])
         )
     else:  # next page
         start = idx; eps = kino["episodes"]
@@ -182,18 +188,27 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Serial preview
-    if kino.get("type") == "serial":
-        await update.message.reply_photo(
-            kino.get("photo", ""),
-            caption=f"🎬 {kino.get('title','')}\n\n📜 {kino.get('desc','')}{views_txt}"
+   if kino.get("type") == "serial":
+    ep = kino["episodes"][0]
+    msg_id = ep.get("msg_id")
+
+    if msg_id:
+        # 1-qismni kanal postidan nusxa ko'chirish
+        await context.bot.copy_message(
+            chat_id=update.effective_chat.id,
+            from_chat_id=kino["channel"],
+            message_id=int(msg_id)
         )
-        eps = kino["episodes"]
-        kb = [[InlineKeyboardButton(eps[i]["text"], callback_data=f"ep|{kod}|{i}")]
-               for i in range(min(10, len(eps)))]
-        if len(eps) > 10:
+
+        # Tugmalar orqali boshqa qismlarni ko'rsatish
+        kb = [[InlineKeyboardButton(f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
+              for i in range(min(10, len(kino['episodes'])))]
+        if len(kino["episodes"]) > 10:
             kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|10")])
-        await update.message.reply_text(
-            "📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb)
+
+        await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
+    return
+
         )
 
 # ─── /stats ──────────────────────────────────────────────────────────
@@ -344,21 +359,31 @@ async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Parol noto‘g‘ri.")
         return
 
-    info: Dict[str, Any] = {}; eps: List[Dict[str,str]] = []; kod=""
+    info: Dict[str, Any] = {}
+    episodes_ids: List[str] = []
+    kod = ""
     for ln in lines:
-        if ln.startswith("kod:"):  kod = ln.split(":",1)[1].strip()
-        elif ln.startswith(("type:","title:","desc:","photo:","file_id:","caption:","channel:","msg_id:")):
-            k,v = ln.split(":",1); info[k.strip()] = v.strip()
-        elif "=" in ln:
-            k,v = ln.split("=",1); eps.append({"text":f"{k.strip()}-qism","file_id":v.strip()})
+        if ln.startswith("kod:"):
+            kod = ln.split(":",1)[1].strip()
+        elif ln.startswith(("type:","title:","desc:","photo:","caption:","channel:")):
+            k,v = ln.split(":",1)
+            info[k.strip()] = v.strip()
+        elif ln.startswith("msg_id"):
+            parts = ln.split(":",1)
+            if len(parts) == 2:
+                episodes_ids.append(parts[1].strip())
+
     if info.get("type") == "serial":
-        info["episodes"] = eps
+        info["episodes"] = [{"msg_id": mid, "file_id": None} for mid in episodes_ids]
+
     if not kod:
         await update.message.reply_text("❌ 'kod:' kiritilmadi")
         return
 
-    KINO_DB[kod] = info; save_db_with_backup()
+    KINO_DB[kod] = info
+    save_db_with_backup()
     await update.message.reply_text("✅ Saqlandi / yangilandi.")
+
 
 # ─── /send (kanal‑postni global yuborish) ────────────────────────────
 async def send_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
