@@ -4,17 +4,16 @@
 #  • Kod bilan kino, serial, kanal‑post jo‘natish  + views
 #  • Subscribe‑prompt  • Avto‑backup  • Users ro‘yxati
 # ============================
+from __future__ import annotations
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatMemberStatus
-from __future__ import annotations
 import json, logging, datetime, os, shutil
 from typing import Any, Dict, List, Set
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
-    ContextTypes, filters,
-ADMIN_IDS = [7260661052]  # bu yerga o'z admin Telegram ID'ingizni yozing
+     filters,
 
 def admin_only(func):
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
