@@ -1,9 +1,3 @@
-# ============================
-
-#  • /add  /reset  /stats  /send
-#  • Kod bilan kino, serial, kanal‑post jo‘natish  + views
-#  • Subscribe‑prompt  • Avto‑backup  • Users ro‘yxati
-# ============================
 from __future__ import annotations
 import json, logging, datetime, os, shutil
 from typing import Any, Dict, List, Set
@@ -13,14 +7,12 @@ from telegram.ext import (
     ContextTypes, filters,
 )
 
-# ─── Logger ──────────────────────────────────────────────────────────
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
 
-# ─── ENV / CONST ─────────────────────────────────────────────────────
 BOT_TOKEN        = os.getenv("BOT_TOKEN",        "YOUR_TOKEN_HERE")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@kinokodlarida")
 ADMIN_CODE       = os.getenv("ADMIN_CODE",       "2299")
@@ -32,7 +24,6 @@ BACKUP_DIR  = "/data/backups"
 ADMIN_IDS: Set[int] = set()
 USERS:     Set[int] = set()
 
-# ─── Persistent data ─────────────────────────────────────────────────
 try:
     with open(DATA_FILE, encoding="utf-8") as f:
         KINO_DB: Dict[str, Dict[str, Any]] = json.load(f)
@@ -45,7 +36,6 @@ try:
 except FileNotFoundError:
     USERS = set()
 
-# ─── Helpers ─────────────────────────────────────────────────────────
 def save_db() -> None:
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(KINO_DB, f, ensure_ascii=False, indent=2)
@@ -69,7 +59,6 @@ def sub_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("✅ Obuna bo‘ldim", callback_data="check_sub")],
     ])
 
-# ─── /start ──────────────────────────────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
@@ -99,7 +88,6 @@ async def check_sub_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await q.answer("❌ Hali obuna emassiz!", show_alert=True)
 
-# ─── Delete button ───────────────────────────────────────────────────
 async def del_msg_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         try:
@@ -111,37 +99,6 @@ async def del_msg_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning("delete failed: %s", e)
         await update.callback_query.answer()
 
-# ─── Serial epizodlari ───────────────────────────────────────────────
-async def episode_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    tag, kod, idx_s = q.data.split("|", 2)
-    idx = int(idx_s)
-    kino = KINO_DB.get(kod)
-    if not kino:
-        return
-
-    if tag == "ep":
-        ep = kino["episodes"][idx]
-        msg_id = ep.get("msg_id")
-        if msg_id:
-            await context.bot.copy_message(
-                chat_id=q.message.chat_id,
-                from_chat_id=kino["channel"],
-                message_id=int(msg_id),
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
-            )
-    else:  # next page
-        start = idx
-        eps = kino["episodes"]
-        kb = [[InlineKeyboardButton(eps[i]["text"] if "text" in eps[i] else f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
-               for i in range(start, min(len(eps), start+10))]
-        if start + 10 < len(eps):
-            kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|{start+10}")])
-        await q.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(kb))
-
-
-# ─── Kino‑kodi xabarlari ─────────────────────────────────────────────
 async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
@@ -168,29 +125,6 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        # Serial turi
-        if kino.get("type") == "serial":
-            ep = kino["episodes"][0]
-            msg_id = ep.get("msg_id")
-            if not msg_id:
-                await update.message.reply_text("❌ Serial 1-qismi uchun msg_id topilmadi.")
-                return
-
-            # 1-qismni kanal postidan nusxa ko'chirish
-            await context.bot.copy_message(
-                chat_id=update.effective_chat.id,
-                from_chat_id=kino["channel"],
-                message_id=int(msg_id)
-            )
-
-            kb = [[InlineKeyboardButton(f"{i+1}-qism", callback_data=f"ep|{kod}|{i}")]
-                  for i in range(min(10, len(kino['episodes'])))]
-            if len(kino["episodes"]) > 10:
-                kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|10")])
-            await update.message.reply_text("📺 Qaysi qismini tanlaysiz?", reply_markup=InlineKeyboardMarkup(kb))
-            return
-
-        # Oddiy kino — copy_message orqali yuborish
         if kino.get("channel") and kino.get("msg_id"):
             await context.bot.copy_message(
                 chat_id=update.effective_chat.id,
@@ -199,36 +133,24 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        # Agarda boshqa holat bo‘lsa xabar beramiz
+        # Agar yuqoridagi shartlarga mos kelmasa, xabar berish
         await update.message.reply_text("❗ Bu kod uchun ko‘rsatiladigan kontent mavjud emas.")
 
     except Exception as e:
         logger.error(f"Xatolik yuz berdi: {e}")
         await update.message.reply_text(f"⚠️ Xatolik yuz berdi: {e}")
 
-
-        # Agar hech nima bajarilmasa
-        await update.message.reply_text("❗ Bu kod uchun ko‘rsatiladigan kontent mavjud emas.")
-
-    except Exception as e:
-        logger.error(f"Xatolik yuz berdi: {e}")
-        await update.message.reply_text(f"⚠️ Xatolik yuz berdi: {e}")
-
-
-# ─── /stats ──────────────────────────────────────────────────────────
 async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
     total   = len(KINO_DB)
     videos  = sum(1 for k in KINO_DB.values() if k.get("type") == "video")
-    serials = sum(1 for k in KINO_DB.values() if k.get("type") == "serial")
     views   = sum(k.get("views",0) for k in KINO_DB.values())
     await update.message.reply_text(
-        f"<b>Statistika</b>\n\n🎬 Jami: {total}\n📹 Video: {videos}\n🎞 Serial: {serials}\n👁 Ko‘rishlar: {views}",
+        f"<b>Statistika</b>\n\n🎬 Jami: {total}\n📹 Video: {videos}\n👁 Ko‘rishlar: {views}",
         parse_mode="HTML"
     )
 
-# ─── /udump  ────────────────────────────────────────────────────────
 async def udump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
@@ -246,14 +168,12 @@ async def udump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error("udump xato: %s", e)
         await update.message.reply_text(f"⚠️ Yuborib bo‘lmadi: {e}")
 
-# ─── /urestore buyrug'i ───────────────────────────────────────────────
 async def urestore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
     await update.message.reply_text("📤 Yangi users.json faylini yuboring.")
     context.user_data["await_urestore"] = True
 
-# ─── Hujjat qabul qilish (users.json)  ────────────────────────────────
 async def urestore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.user_data.get("await_urestore"):
         return
@@ -269,7 +189,7 @@ async def urestore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         with open(tmp, encoding="utf-8") as f:
-            new_users = json.load(f)  # sintaksis tekshiruvi
+            new_users = json.load(f)
     except Exception as e:
         await update.message.reply_text(f"❌ JSON xato: {e}")
         return
@@ -281,18 +201,17 @@ async def urestore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         shutil.move(tmp, USERS_FILE)
         global USERS
-        USERS = set(new_users)  # RAMdagi variableni yangilaymiz
-        save_users()  # xavfsizlik uchun
+        USERS = set(new_users)
+        save_users()
 
         await update.message.reply_text("✅ users.json yangilandi.")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Saqlashda xato: {e}")
 
-# --- /dump  (admin – faylni yuborish) ------------------------------
 async def dump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
-    path = "/data/kino_data.json"   # volume ichidagi to‘liq yo‘l
+    path = "/data/kino_data.json"
     if not os.path.exists(path):
         await update.message.reply_text("❗ Fayl topilmadi.")
         return
@@ -305,16 +224,13 @@ async def dump_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error("dump send xato: %s", e)
         await update.message.reply_text(f"⚠️ Yuborib bo‘lmadi: {e}")
 
-
-# --- /restore (1-bosqich) --------------------------------------------------
 async def restore_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
     await update.message.reply_text(
-        "📤 Yangi kino_data.json faylini hujjat (document) sifatida yuboring.")
+        "📤 Yangi kino_data.json faylini hujjat sifatida yuboring.")
     context.user_data["await_restore"] = True
 
-# --- Hujjat qabul qilish ---------------------------------------------------
 async def restore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.user_data.get("await_restore"):
         return
@@ -350,7 +266,6 @@ async def restore_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"⚠️ Saqlashda xato: {e}")
 
-# ─── /add ────────────────────────────────────────────────────────────
 async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
@@ -365,21 +280,13 @@ async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     info: Dict[str, Any] = {}
-    episodes_ids: List[str] = []
     kod = ""
     for ln in lines:
         if ln.startswith("kod:"):
             kod = ln.split(":",1)[1].strip()
-        elif ln.startswith(("type:","title:","desc:","photo:","caption:","channel:")):
+        elif ln.startswith(("type:","title:","desc:","photo:","caption:","channel:","msg_id:","file_id:")):
             k,v = ln.split(":",1)
             info[k.strip()] = v.strip()
-        elif ln.startswith("msg_id"):
-            parts = ln.split(":",1)
-            if len(parts) == 2:
-                episodes_ids.append(parts[1].strip())
-
-    if info.get("type") == "serial":
-        info["episodes"] = [{"msg_id": mid, "file_id": None} for mid in episodes_ids]
 
     if not kod:
         await update.message.reply_text("❌ 'kod:' kiritilmadi")
@@ -389,7 +296,6 @@ async def add_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db_with_backup()
     await update.message.reply_text("✅ Saqlandi / yangilandi.")
 
-# ─── /send (kanal‑postni global yuborish) ────────────────────────────
 async def send_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
@@ -423,7 +329,6 @@ async def send_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             failed += 1
     await q.edit_message_text(f"📤 Yuborildi: {sent}\n❌ Xato: {failed}")
 
-# ─── /reset ──────────────────────────────────────────────────────────
 async def reset_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or update.effective_user.id not in ADMIN_IDS:
         return
@@ -462,41 +367,32 @@ async def reset_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await q.edit_message_text("❌ Bekor qilindi.")
 
-# ─── MAIN ────────────────────────────────────────────────────────────
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # ---- Admin fayl zaxira / tiklash ----
     app.add_handler(CommandHandler("dump", dump_cmd))
     app.add_handler(CommandHandler("restore", restore_cmd))
     app.add_handler(MessageHandler(filters.Document.ALL, restore_file))
 
-    # ---- /send channel‑post ----
     app.add_handler(CommandHandler("send", send_cmd))
     app.add_handler(CallbackQueryHandler(send_cb, pattern=r"^(send_now\|.+|cancel_send)$"))
 
-    #--- Udump buyruq ---
-    app.add_handler(CommandHandler("udump",    udump_cmd))
+    app.add_handler(CommandHandler("udump", udump_cmd))
     app.add_handler(CommandHandler("urestore", urestore_cmd))
-    # barcha hujjatlarni tutuvchi universal MessageHandler kerak:
     app.add_handler(MessageHandler(filters.Document.ALL, urestore_file))
 
-    # ---- Core buyruqlar ----
-    app.add_handler(CommandHandler("start",  start))
+    app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(check_sub_cb, pattern="^check_sub$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_code))
-    app.add_handler(CommandHandler("stats",  stats_cmd))
-    app.add_handler(CommandHandler("add",    add_cmd))
-    app.add_handler(CommandHandler("reset",  reset_cmd))
+    app.add_handler(CommandHandler("stats", stats_cmd))
+    app.add_handler(CommandHandler("add", add_cmd))
+    app.add_handler(CommandHandler("reset", reset_cmd))
     app.add_handler(CallbackQueryHandler(reset_cb, pattern=r"^(reset_all|cancel_reset|del\|.+)$"))
 
-    # ---- Serial epizodlari va delete ----
-    app.add_handler(CallbackQueryHandler(episode_cb, pattern=r"^(ep|next)\|"))
     app.add_handler(CallbackQueryHandler(del_msg_cb, pattern="^del$"))
 
-    logger.info("🤖 Bot ishga tushdi   |   Kino DB: %s  |  USERS: %s", len(KINO_DB), len(USERS))
+    logger.info("🤖 Bot ishga tushdi | Kino DB: %s | USERS: %s", len(KINO_DB), len(USERS))
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
