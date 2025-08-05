@@ -4,6 +4,24 @@
 #  • Kod bilan kino, serial, kanal‑post jo‘natish  + views
 #  • Subscribe‑prompt  • Avto‑backup  • Users ro‘yxati
 # ============================
+from telegram import Update
+from telegram.ext import ContextTypes
+from telegram.constants import ChatMemberStatus
+
+ADMIN_IDS = [7260661052]  # bu yerga o'z admin Telegram ID'ingizni yozing
+
+def admin_only(func):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        user_id = update.effective_user.id
+        if user_id in ADMIN_IDS:
+            return await func(update, context, *args, **kwargs)
+        else:
+            if update.message:
+                await update.message.reply_text("❌ Bu buyruq faqat adminlar uchun.")
+            elif update.callback_query:
+                await update.callback_query.answer("❌ Bu amal faqat adminlar uchun.", show_alert=True)
+    return wrapper
+
 from __future__ import annotations
 import json, logging, datetime, os, shutil
 from typing import Any, Dict, List, Set
