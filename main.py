@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 import os
 
-BOT_TOKEN        = os.getenv("BOT_TOKEN", "7921810416:AAHGPSgE1L2DCMJ3pgTtyIJi-GKxwteH-p4").strip()
+BOT_TOKEN        = os.getenv("BOT_TOKEN", "7921810416:AAF2PRHSzam-Tne8C4ALKY3oc4-sjNnusDU").strip()
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@kinokodlarida").strip()
 ADMIN_CODE       = os.getenv("ADMIN_CODE", "2299").strip()
 
