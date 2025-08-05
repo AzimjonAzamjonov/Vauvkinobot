@@ -110,30 +110,33 @@ async def del_msg_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ─── Serial epizodlari ───────────────────────────────────────────────
 async def episode_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query; await q.answer()
-    tag, kod, idx_s = q.data.split("|", 2); idx = int(idx_s)
+    q = update.callback_query
+    await q.answer()
+    tag, kod, idx_s = q.data.split("|", 2)
+    idx = int(idx_s)
     kino = KINO_DB.get(kod)
-    if not kino: return
+    if not kino:
+        return
 
-   if tag == "ep":
-    ep = kino["episodes"][idx]
-    msg_id = ep.get("msg_id")
-    if msg_id:
-        await context.bot.copy_message(
-            chat_id=q.message.chat_id,
-            from_chat_id=kino["channel"],
-            message_id=int(msg_id),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
-        )
-]])
-        )
+    if tag == "ep":
+        ep = kino["episodes"][idx]
+        msg_id = ep.get("msg_id")
+        if msg_id:
+            await context.bot.copy_message(
+                chat_id=q.message.chat_id,
+                from_chat_id=kino["channel"],
+                message_id=int(msg_id),
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌", callback_data="del")]])
+            )
     else:  # next page
-        start = idx; eps = kino["episodes"]
+        start = idx
+        eps = kino["episodes"]
         kb = [[InlineKeyboardButton(eps[i]["text"], callback_data=f"ep|{kod}|{i}")]
                for i in range(start, min(len(eps), start+10))]
         if start+10 < len(eps):
             kb.append([InlineKeyboardButton("▶️ Davomi", callback_data=f"next|{kod}|{start+10}")])
         await q.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(kb))
+
 
 # ─── Kino‑kodi xabarlari ─────────────────────────────────────────────
 async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
