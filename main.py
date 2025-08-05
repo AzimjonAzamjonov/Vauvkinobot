@@ -155,7 +155,7 @@ async def add_episode(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ======================== Botni ishga tushurish ========================
 
 def main():
-    token = os.environ.get("BOT_TOKEN")
+    token = os.environ.get("7921810416:AAF2PRHSzam-Tne8C4ALKY3oc4-sjNnusDU")
     if not token:
         print("❌ BOT_TOKEN topilmadi. .env faylga yozing.")
         return
